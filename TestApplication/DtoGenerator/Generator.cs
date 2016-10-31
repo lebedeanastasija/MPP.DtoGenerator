@@ -17,6 +17,7 @@ namespace DtoGenerator
         private int maxCountOfThreads;
         private static ConcurrentBag<CompilationUnitSyntax> result;
         private static TypeConverter typeConverter;
+        private static CountdownEvent handleFinishEvent;
 
         public Generator(int maxCountOfThreads = 5)
         {
@@ -30,10 +31,14 @@ namespace DtoGenerator
             ThreadPool.SetMaxThreads(maxCountOfThreads, maxCountOfThreads);
             Dictionary<string, CompilationUnitSyntax> resultDictionary = new Dictionary<string, CompilationUnitSyntax>();
 
+            handleFinishEvent = new CountdownEvent(classInfoList.Count);
             foreach (ClassInfo classInfo in classInfoList)
             {
                 ThreadPool.QueueUserWorkItem(GenerateDto, classInfo);
             }
+
+            handleFinishEvent.Wait();
+            //Thread.Sleep(10000);
 
             foreach (CompilationUnitSyntax syntax in result)
             {
@@ -49,6 +54,7 @@ namespace DtoGenerator
                 .AddUsings(SyntaxFactory.UsingDirective(SyntaxFactory.IdentifierName("System")))
                 .AddMembers(GenerateClass(info));
             result.Add(compilationUnitSyntax);
+            handleFinishEvent.Signal();
         }
 
         private static  ClassDeclarationSyntax GenerateClass(ClassInfo classInfo)
