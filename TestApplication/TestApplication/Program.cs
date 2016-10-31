@@ -15,7 +15,7 @@ namespace TestApplication
     {
         static void Main(string[] args)
         {
-            List<ClassInfo> classInfoList = JsonClassReader.ReadClassInfo("info.json");
+            List<ClassInfo> classInfoList = JsonClassReader.ReadClassInfo("Classes.json");
             Generator generator = new Generator();
             Dictionary<string, CompilationUnitSyntax> result = generator.GenerateDtoList(classInfoList);
             ConcurrentDictionary<string, CompilationUnitSyntax> dictionary = new ConcurrentDictionary<string, CompilationUnitSyntax>();

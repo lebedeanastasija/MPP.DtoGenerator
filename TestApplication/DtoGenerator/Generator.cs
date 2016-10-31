@@ -15,9 +15,9 @@ namespace DtoGenerator
     public class Generator
     {
         private int maxCountOfThreads;
-        private static ConcurrentBag<CompilationUnitSyntax> result;
-        private static TypeConverter typeConverter;
-        private static CountdownEvent handleFinishEvent;
+        private  ConcurrentBag<CompilationUnitSyntax> result;
+        private TypeConverter typeConverter;
+        private CountdownEvent handleFinishEvent;
 
         public Generator(int maxCountOfThreads = 5)
         {
@@ -38,7 +38,6 @@ namespace DtoGenerator
             }
 
             handleFinishEvent.Wait();
-            //Thread.Sleep(10000);
 
             foreach (CompilationUnitSyntax syntax in result)
             {
@@ -47,17 +46,18 @@ namespace DtoGenerator
             return resultDictionary;    
         }
 
-        private static void GenerateDto(object classInfo)
+        private void GenerateDto(object classInfo)
         {
             ClassInfo info = (ClassInfo)classInfo;
             CompilationUnitSyntax compilationUnitSyntax = SyntaxFactory.CompilationUnit()
                 .AddUsings(SyntaxFactory.UsingDirective(SyntaxFactory.IdentifierName("System")))
-                .AddMembers(GenerateClass(info));
+                .AddMembers(SyntaxFactory.NamespaceDeclaration(SyntaxFactory.IdentifierName("DtoGenerator"))
+                .AddMembers(GenerateClass(info)));
             result.Add(compilationUnitSyntax);
             handleFinishEvent.Signal();
         }
 
-        private static  ClassDeclarationSyntax GenerateClass(ClassInfo classInfo)
+        private ClassDeclarationSyntax GenerateClass(ClassInfo classInfo)
         {
             ClassDeclarationSyntax classDeclarationSyntax = SyntaxFactory.ClassDeclaration(SyntaxFactory.Identifier(classInfo.ClassName))
                 .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
@@ -65,7 +65,7 @@ namespace DtoGenerator
             return classDeclarationSyntax;
         }
 
-        private static PropertyDeclarationSyntax[] GeneratePropertyList(List<PropertyInfo> propertyInfoList)
+        private PropertyDeclarationSyntax[] GeneratePropertyList(List<PropertyInfo> propertyInfoList)
         {
             PropertyDeclarationSyntax[] properties = new PropertyDeclarationSyntax[propertyInfoList.Count];
             int i = 0;
@@ -76,7 +76,7 @@ namespace DtoGenerator
             return properties;
         }
 
-        private static PropertyDeclarationSyntax GenerateProperty(PropertyInfo propertyInfo)
+        private PropertyDeclarationSyntax GenerateProperty(PropertyInfo propertyInfo)
         {
             TypeSyntax type = GenerateType(propertyInfo.Type, propertyInfo.Format);
             PropertyDeclarationSyntax property = SyntaxFactory.PropertyDeclaration(type, propertyInfo.Name)
@@ -88,15 +88,15 @@ namespace DtoGenerator
             return property;
         }
 
-        private static TypeSyntax GenerateType(string type, string format)
+        private TypeSyntax GenerateType(string type, string format)
         {
-            string _NetTypeName = typeConverter.TryGetTypeName(new TypeInfo(type, format));
-            return SyntaxFactory.ParseTypeName(_NetTypeName);
+            string netTypeName = typeConverter.TryGetTypeName(new TypeInfo(type, format));
+            return SyntaxFactory.ParseTypeName(netTypeName);
         }
 
-        private static string GetNameFromCompilationUnitSyntax(CompilationUnitSyntax syntax)
+        private string GetNameFromCompilationUnitSyntax(CompilationUnitSyntax syntax)
         {
-            return ((ClassDeclarationSyntax)syntax.Members[0]).Identifier.ToString();
+            return ((ClassDeclarationSyntax)(((NamespaceDeclarationSyntax)syntax.Members[0]).Members[0])).Identifier.ToString();
         }
     }
 }

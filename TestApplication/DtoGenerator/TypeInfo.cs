@@ -41,7 +41,7 @@ namespace DtoGenerator
 
         public override int GetHashCode()
         {
-            return 31 * name.GetHashCode() + format.GetHashCode();
+            return name.GetHashCode() + format.GetHashCode();
         }
     }
 }
