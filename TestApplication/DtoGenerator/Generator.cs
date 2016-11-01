@@ -12,17 +12,21 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace DtoGenerator
 {
-    public class Generator
+    public class Generator: IDisposable
     {
         private int maxCountOfThreads;
         private  ConcurrentBag<CompilationUnitSyntax> result;
         private TypeConverter typeConverter;
         private CountdownEvent handleFinishEvent;
+        private string classesNamespace;
+        private bool disposed = false;
 
-        public Generator(int maxCountOfThreads = 5)
+        public Generator(int maxCountOfThreads, string classesNamespace)
         {
+        
             typeConverter = TypeConverter.Instance;
             this.maxCountOfThreads = maxCountOfThreads;
+            this.classesNamespace = classesNamespace; 
             result = new ConcurrentBag<CompilationUnitSyntax>();
         }
 
@@ -32,6 +36,7 @@ namespace DtoGenerator
             Dictionary<string, CompilationUnitSyntax> resultDictionary = new Dictionary<string, CompilationUnitSyntax>();
 
             handleFinishEvent = new CountdownEvent(classInfoList.Count);
+
             foreach (ClassInfo classInfo in classInfoList)
             {
                 ThreadPool.QueueUserWorkItem(GenerateDto, classInfo);
@@ -41,7 +46,7 @@ namespace DtoGenerator
 
             foreach (CompilationUnitSyntax syntax in result)
             {
-                resultDictionary.Add(GetNameFromCompilationUnitSyntax(syntax), syntax);
+                resultDictionary.Add(GetClassNameFromSyntax(syntax), syntax);
             }         
             return resultDictionary;    
         }
@@ -51,7 +56,7 @@ namespace DtoGenerator
             ClassInfo info = (ClassInfo)classInfo;
             CompilationUnitSyntax compilationUnitSyntax = SyntaxFactory.CompilationUnit()
                 .AddUsings(SyntaxFactory.UsingDirective(SyntaxFactory.IdentifierName("System")))
-                .AddMembers(SyntaxFactory.NamespaceDeclaration(SyntaxFactory.IdentifierName("DtoGenerator"))
+                .AddMembers(SyntaxFactory.NamespaceDeclaration(SyntaxFactory.IdentifierName(classesNamespace))
                 .AddMembers(GenerateClass(info)));
             result.Add(compilationUnitSyntax);
             handleFinishEvent.Signal();
@@ -94,9 +99,35 @@ namespace DtoGenerator
             return SyntaxFactory.ParseTypeName(netTypeName);
         }
 
-        private string GetNameFromCompilationUnitSyntax(CompilationUnitSyntax syntax)
+        private string GetClassNameFromSyntax(CompilationUnitSyntax syntax)
         {
             return ((ClassDeclarationSyntax)(((NamespaceDeclarationSyntax)syntax.Members[0]).Members[0])).Identifier.ToString();
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposed)
+            {
+                if (disposing)
+                {
+                    typeConverter = null;
+                }
+                
+                result = null;
+                handleFinishEvent = null;
+                disposed = true;
+            }
+        }
+
+        ~Generator()
+        {
+            Dispose(disposed);
         }
     }
 }
